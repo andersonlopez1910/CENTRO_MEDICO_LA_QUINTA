@@ -1,0 +1,33 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/includes/bootstrap.php';
+$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+if (!$id || $id < 1) {
+    http_response_code(404);
+    $post = null;
+} else {
+    $query = db()->prepare("SELECT id, title, content, image_path, created_at FROM posts WHERE id = :id AND status = 'published'");
+    $query->execute(['id' => $id]);
+    $post = $query->fetch() ?: null;
+    if ($post === null) {
+        http_response_code(404);
+    }
+}
+$pageTitle = $post === null ? 'Artículo no encontrado' : $post['title'];
+$activePage = 'posts';
+require __DIR__ . '/includes/header.php';
+?>
+<section class="section article-section">
+    <article class="container article">
+        <?php if ($post === null): ?>
+            <p class="eyebrow">Novedades</p><h1>No encontramos este artículo</h1><p>Es posible que haya sido retirado o que el enlace no sea correcto.</p><a class="button button--blue" href="posts.php">Volver a novedades</a>
+        <?php else: ?>
+            <a class="back-link" href="posts.php">← Todas las novedades</a>
+            <p class="eyebrow">Actualidad · <?= e(format_date($post['created_at'])) ?></p>
+            <h1><?= e($post['title']) ?></h1>
+            <?php if (!empty($post['image_path'])): ?><img class="article-featured-image" src="post-image.php?id=<?= (int) $post['id'] ?>" alt="Imagen de <?= e($post['title']) ?>"><?php endif; ?>
+            <div class="article-content"><?= nl2br(e($post['content'])) ?></div>
+        <?php endif; ?>
+    </article>
+</section>
+<?php require __DIR__ . '/includes/footer.php'; ?>

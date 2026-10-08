@@ -1,0 +1,24 @@
+.carousel { --carousel-gap: 24px; width: 100%; }
+.carousel-wrapper { position: relative; width: 100%; overflow: hidden; padding: 8px; margin: -8px; touch-action: pan-y; cursor: grab; }
+.carousel-wrapper:active { cursor: grabbing; }
+.carousel-track { display: flex; gap: var(--carousel-gap); transition: transform .4s ease-in-out; will-change: transform; }
+.carousel-slide { flex: 0 0 calc((100% - 72px) / 4); min-width: 0; }
+.carousel-slide > * { height: 100%; }
+.carousel-controls { display: flex; justify-content: flex-end; gap: 9px; margin-top: 17px; }
+.carousel-button { display: grid; width: 40px; height: 40px; place-items: center; padding: 0; border: 1px solid #c9d9e5; border-radius: 50%; color: var(--blue); background: #fff; font-family: Arial, sans-serif; font-size: 29px; line-height: 1; cursor: pointer; transition: color .2s ease, background .2s ease, opacity .2s ease; }
+.carousel-button:hover:not(:disabled) { color: #fff; background: var(--blue); }
+.carousel-button:focus-visible { outline: 3px solid rgba(4,111,205,.25); outline-offset: 2px; }
+.carousel-button:disabled { opacity: .38; cursor: not-allowed; }
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .carousel-slide { flex-basis: calc((100% - 24px) / 2); }
+}
+
+@media (max-width: 767px) {
+  .carousel { --carousel-gap: 15px; }
+  .carousel-slide { flex-basis: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carousel-track { transition-duration: .01ms; }
+}

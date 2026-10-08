@@ -1,2 +1,56 @@
-# CENTRO_MEDICO_LA_QUINTA
-CENTROMEDICOLAQUINTA
+# Centro Médico La Quinta
+
+Sitio público y panel de administración en PHP 8+, con MySQL/MariaDB y PDO. Incluye portada institucional, páginas de Nosotros, Servicios y PQRSF, novedades, documentos PDF, galería de videos y herramientas de administración protegidas por sesión y token CSRF.
+
+## Requisitos
+
+- PHP 8.1 o posterior con las extensiones `PDO`, `pdo_mysql` y `fileinfo`.
+- MySQL 8.0+ o MariaDB compatible.
+- Servidor web Apache/Nginx con PHP. En producción, apunta el document root a este directorio y desactiva la exposición de errores PHP.
+
+## Instalación
+
+1. Crea las tablas con `mysql -u root -p < schema.sql` (ajusta el usuario de base de datos si corresponde).
+2. Configura las variables de entorno `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` y `DB_PASSWORD`.
+3. Asegúrate de que PHP pueda crear y escribir en el directorio hermano `cmq-private-storage/pdfs` (se crea al subir el primer PDF). Los archivos se almacenan fuera del proyecto y se sirven mediante `download.php`. Si defines `PDF_STORAGE_PATH`, debe apuntar a una ruta absoluta que también esté fuera del document root.
+4. Crea el primer administrador desde una terminal. En PowerShell:
+
+   ```powershell
+   $secure = Read-Host -AsSecureString "Contraseña (mínimo 12 caracteres)"
+   $env:ADMIN_PASSWORD = [System.Net.NetworkCredential]::new("", $secure).Password
+   php scripts/create-admin.php admin admin@example.com
+   Remove-Item Env:ADMIN_PASSWORD
+   $secure.Dispose()
+   ```
+
+   El comando solo crea la cuenta inicial cuando la tabla `usuarios` está vacía. La contraseña se almacena con `password_hash()`.
+5. Abre `/admin/login.php` para administrar servicios, publicaciones, documentos, PQRSF y videos.
+
+Si ya tienes una instalación con las tablas anteriores, ejecuta `php scripts/migrate-services.php` una vez después de configurar la conexión. El script crea `servicios` y registra los tres servicios iniciales solo cuando la tabla está vacía.
+
+Para añadir PQRSF a una instalación existente, ejecuta `php scripts/migrate-pqrsf.php`. La notificación usa Gmail API cuando se configuran `GMAIL_OAUTH_CLIENT_ID`, `GMAIL_OAUTH_CLIENT_SECRET` y `GMAIL_OAUTH_REFRESH_TOKEN`; se envía a `direccionadm.cmq@gmail.com` y utiliza OAuth2 para obtener el token de acceso. Una API key de Google no autoriza el envío de correos con Gmail API. Si OAuth no está configurado, se usa SMTP con PHPMailer, incluido en `vendor/`. Configura las variables indicadas en `.env.example` en el entorno de producción. Para Gmail SMTP se requiere una contraseña de aplicación en `SMTP_PASSWORD`; no uses la contraseña normal de la cuenta. No subas un archivo `.env` con credenciales al repositorio.
+
+Para añadir la galería de videos a una instalación existente, ejecuta `php scripts/migrate-videos.php`. Los archivos locales admiten MP4, WebM y OGG de hasta 100 MB, aunque el servidor debe tener `upload_max_filesize` y `post_max_size` configurados por encima de ese límite. El formulario admite una descripción detallada para la vista pública. Puedes definir `VIDEO_STORAGE_PATH` para usar un almacenamiento externo al document root.
+
+Para habilitar imágenes destacadas en una instalación existente, ejecuta `php scripts/migrate-post-images.php`. Se admiten JPG, JPEG, PNG, WEBP, GIF y SVG de hasta 10 MB. Las imágenes se almacenan fuera del document root y se sirven mediante `post-image.php`; puedes definir `POST_IMAGE_STORAGE_PATH` para establecer otra ruta absoluta. Los SVG se limpian antes de guardarse.
+
+Para desarrollo local, puedes iniciar el servidor integrado desde la raíz del proyecto con `php -S 127.0.0.1:8000` y visitar `http://127.0.0.1:8000`.
+
+## Seguridad y contenido
+
+- Las consultas utilizan sentencias preparadas PDO; el contenido textual se escapa al renderizarse.
+- Los PDFs se validan por extensión, MIME, firma y tamaño (máximo 40 MB), reciben un nombre aleatorio y se guardan fuera de las rutas públicas normales. El archivo `.user.ini` incluye los límites de PHP requeridos; en servidores con PHP-FPM o una configuración global administrada, replica esos valores en la configuración activa del servidor.
+- Las sesiones usan cookies `HttpOnly`, `SameSite=Strict` y `Secure` cuando el sitio se sirve por HTTPS. Los formularios administrativos validan CSRF.
+- Las publicaciones y servicios usan texto plano; los borradores no se muestran en el sitio público.
+- Las imágenes de publicaciones se validan por extensión, MIME, tamaño y estructura de imagen. Los archivos reciben nombres aleatorios y se sirven desde una ruta controlada.
+- La página pública de Servicios toma su contenido de la tabla `servicios`. El panel permite establecer un icono breve, el orden y el estado de publicación de cada tarjeta.
+- Las PQRSF se validan en el servidor, se guardan con un radicado único y se consultan solo desde el panel de administración. La notificación SMTP contiene el detalle solicitado y solo se dirige al correo institucional configurado.
+
+
+## OAuth de Google administrado desde el panel
+
+En una instalación existente ejecuta `php scripts/migrate-google-oauth.php`. Después entra a **Administración → Google / Gmail**, guarda el Client ID y Client Secret de una credencial OAuth de tipo **Aplicación web** y copia exactamente la URI mostrada allí en Google Cloud Console → Credenciales → URI de redirección autorizados. El panel cifra el Client Secret y los tokens de acceso y renovación; el token se renueva automáticamente cuando llega una PQRSF.
+
+En producción define `APP_ENCRYPTION_KEY` como una clave Base64 de 32 bytes, fuera del repositorio. Si la URL pública no puede detectarse de forma automática, define `GMAIL_OAUTH_REDIRECT_URI` con la misma URI registrada en Google Cloud.
+
+La entrega actual usa exclusivamente OAuth 2.0 y Gmail API con google/apiclient; las notificaciones PQRSF no usan SMTP como alternativa. La cuenta solo se muestra como conectada después de una prueba de envío satisfactoria.
